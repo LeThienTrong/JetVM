@@ -53,8 +53,6 @@ uses
   JetVM.Test.Logger in '..\JetVM.Test.Logger.pas',
   JetVM.Test.Core in 'JetVM.Test.Core.pas',
   JetVM.Test.Values in 'JetVM.Test.Values.pas',
-  JetVM.JIT in '..\JetVM.JIT.pas',
-  JetVM.Test.JIT in 'JetVM.Test.JIT.pas',
   JetVM.Test.Stack in 'JetVM.Test.Stack.pas',
   JetVM.Test.Constants in 'JetVM.Test.Constants.pas',
   JetVM.Test.Bytecode in 'JetVM.Test.Bytecode.pas';
