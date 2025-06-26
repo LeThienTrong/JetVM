@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Complete Phase 1-5 test suite and improve VM core implementation** (2025-06-26 – jarroddavis68)
+  - Expand test coverage from 97 to 257 tests across 5 complete phases
+  - Fix constants pool management with proper count tracking
+  - Convert static arrays to dynamic TArray<T> for better memory management
+  - Add comprehensive Stack, Constants, and Bytecode test fixtures
+  - Improve native function callback system with reference to procedure
+  - Fix access violations in constants initialization
+  - Update documentation to reflect 100% completion of core test phases
+  - Add new bytecode access methods (GetBytecode, GetConstants, GetBytecodeSize)
+
 - **Create FUNDING.yml** (2025-06-26 – Jarrod Davis)
 
 
