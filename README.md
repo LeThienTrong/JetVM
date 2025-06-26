@@ -6,7 +6,7 @@
 >
 > JetVM is actively being developed and rapidly evolving. Some features mentioned in this documentation may not yet be fully implemented, and both APIs and internal structure are subject to change as we continue to improve and expand the library.
 >
-> Your contributions, feedback, and issue reports are highly valued and will help shape NitroVM into the ultimate Pascal development platform!
+> Your contributions, feedback, and issue reports are highly valued and will help shape JetVM into the ultimate Pascal development platform!
 
 
 # 🚀 JetVM - Fast Delphi Virtual Machine
