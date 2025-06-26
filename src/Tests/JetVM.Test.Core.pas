@@ -394,7 +394,7 @@ begin
   FVM.Finalize();
 
   // Get bytecode size after generation
-  LBytecodeSize := FVM.BytecodeSize();
+  LBytecodeSize := FVM.GetBytecodeSize();
   Assert.IsTrue(LBytecodeSize > 0, 'Bytecode should have non-zero size after generation');
 
   // Execute
@@ -404,7 +404,7 @@ begin
   FVM.Reset();
 
   // Check bytecode size after reset
-  LBytecodeAfterReset := FVM.BytecodeSize();
+  LBytecodeAfterReset := FVM.GetBytecodeSize();
 
   // Test what reset actually does - it may clear or modify bytecode
   if LBytecodeAfterReset = LBytecodeSize then
@@ -695,6 +695,9 @@ var
 begin
   // Test single step execution
   FVM.Nop().Stop();
+
+  // CRITICAL FIX: Finalize bytecode before stepping
+  FVM.Finalize();
 
   LInitialPC := FVM.GetPC();
 

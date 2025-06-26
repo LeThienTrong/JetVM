@@ -57,81 +57,36 @@ end;
 ### 🎨 **Rich Type System**
 - **Integers**: Int64 & UInt64 with full arithmetic
 - **Strings**: Native Delphi string operations (Concat, Length, Copy, Pos, etc.)
-- **Booleans**: Native boolean logic and comparisons
-- **Pointers**: Safe pointer arithmetic and dereferencing
-- **Arrays**: Fixed and dynamic arrays with bounds checking
-- **Parameters**: Pascal-style modes (const, var, out)
+- **Booleans**: Logical operations and flow control
+- **Pointers**: Type-safe pointer operations with bounds checking
+- **Arrays**: Dynamic and fixed arrays with element access
 
-### 🔍 **Advanced Debugging**
-- Step-by-step execution for debugging
-- Stack and constant inspection
-- Instruction disassembly with function names
-- Memory allocation tracking
-- Comprehensive error messages with PC information
+### 📊 **Comprehensive Bytecode Support**
+- **140+ optimized opcodes** covering all core operations
+- **Fluent assembly interface** for readable code generation
+- **Compile-time validation** with detailed error reporting
+- **Label management** with forward reference resolution
 
-## 🏗️ Architecture Overview
+## 🎯 Use Cases
 
-JetVM follows a **three-phase architecture**:
+JetVM excels in scenarios requiring **safe execution** of **untrusted code**:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Fluent API     │───▶│  Bytecode Gen   │───▶│  Execution      │
-│  (Build Phase)  │    │  (Compile Phase)│    │  (Runtime Phase)│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ TJetValue       │    │ Constants Pool  │    │ Stack Machine   │
-│ Type System     │    │ Label Patching  │    │ Function Calls  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### 🎯 **Key Design Principles**
-- **Performance First**: Cache-friendly data structures
-- **Type Safety**: Tagged union system with validation levels
-- **Native Integration**: Seamless Delphi function calls
-- **Memory Efficiency**: Managed/unmanaged type separation
-- **Developer Experience**: Fluent API with comprehensive errors
-
-*For detailed architecture documentation, see [DEVELOPER-GUIDE.md](DEVELOPER-GUIDE.md)*
-
-## 🎯 Use Cases & Success Stories
-
-### 🏢 **Enterprise Applications**
-- **🔧 Business Rules**: Execute complex business logic safely in ERP systems
-- **📋 Report Generators**: Dynamic report calculation engines with user-defined formulas
-- **⚙️ Workflow Automation**: Safe script execution in enterprise workflow management
-- **🛡️ Security Sandboxing**: Run untrusted configuration scripts with configurable safety
-- **📊 Data Processing**: High-performance data transformation pipelines
-
-### 🎮 **Game Development**
-- **🎪 Game Scripting**: In-game behavior, quests, and event handling systems
-- **🏆 Mod Support**: Safe user-generated content execution
-- **📊 Data-Driven Design**: Configuration systems and game rule engines
-- **⚙️ Logic Systems**: Custom game mechanics and rule processing
-
-### 🔬 **Research & Education**
-- **📚 VM Concepts**: Clean, understandable implementation for learning virtual machine design
-- **⚡ Algorithm Testing**: Controlled performance benchmarking and algorithm prototyping
-- **🧪 Language Design**: Rapid prototyping of new language features and concepts
-- **🎯 Performance Analysis**: Isolated execution environments for precise measurements
-
-### 🔧 **Development Tools**
-- **📋 Rule Engines**: Execute business rules in a controlled environment
-- **⚙️ Configuration Languages**: Create domain-specific languages for your applications
-- **🛠️ Plugin Systems**: Safe execution of third-party plugins and extensions
+- **🎮 Game Scripting**: Player mods, AI behaviors, quest systems  
+- **📊 Data Processing**: User-defined calculations, transformations, filters
+- **🔌 Plugin Systems**: Safe execution of third-party plugins and extensions
 - **📈 Calculators**: Advanced calculation engines with custom functions
 
 ## 📈 Project Status
 
 ### 🚀 **Current State**
 - **Core Infrastructure**: ✅ Production Ready (100% test coverage)
-- **Value System**: ✅ Fully Implemented (54 comprehensive tests)
-- **Basic Execution**: ✅ Stable & Fast (lightning 27ms test execution)
-- **Advanced Features**: 🔄 Active Development (stack, constants, bytecode modules)
+- **Value System**: ✅ Fully Implemented (67 comprehensive tests)
+- **Stack Operations**: ✅ Complete & Validated (49 comprehensive tests)
+- **Constants Pool**: ✅ Complete & Tested (50 comprehensive tests)
+- **Bytecode Generation**: ✅ Complete & Fluent (48 comprehensive tests)
 
 ### 🎯 **Development Roadmap**
-- **Q1 2025**: Complete core test suite (Phases 3-5) ✅ On Track
+- **Q1 2025**: Complete core test suite (Phases 1-5) ✅ **COMPLETE**
 - **Q2 2025**: Advanced opcode implementation & optimization
 - **Q3 2025**: Performance benchmarking & real-world integration examples
 - **Q4 2025**: Plugin architecture & ecosystem development tools
@@ -142,11 +97,11 @@ Based on current test results:
 - **Value Operations**: Microsecond-level execution  
 - **Bulk Processing**: 10,000+ operations in <5000ms
 - **Memory Management**: Zero leak indicators in stress tests
-- **Test Execution**: 0.28ms average per test (97 tests in 27ms)
+- **Test Execution**: 0.0003s average per test (257 tests in 0.069s)
 
 ### 🏆 **Quality Metrics**
 - **Zero Defects**: No bugs detected in tested components
-- **100% Pass Rate**: All 97 tests consistently passing
+- **100% Pass Rate**: All 257 tests consistently passing
 - **Enterprise Ready**: Robust error handling and edge case management
 - **Memory Safe**: Comprehensive bounds checking and leak prevention
 
@@ -214,64 +169,43 @@ end;
 LVM.RegisterNativeFunction('println', @MyPrintLine, [jvtStr]);
 
 LVM.LoadStr('Hello from VM!')
-   .CallFunction('println')
-   .Stop()
-   .Execute();
+   .CallNative('println')
+   .Stop();
+   
+LVM.Execute(); // Output: VM Output: Hello from VM!
 ```
 
-### Control Flow and Loops
+### Advanced: Conditional Logic
 
 ```pascal
-var
-  LLoopStart, LLoopEnd: Integer;
-begin
-  LLoopStart := LVM.CreateLabel();
-  LLoopEnd := LVM.CreateLabel();
-  
-  // Countdown from 10 to 1
-  LVM.LoadInt(10)                    // Counter
-     .StoreLocal(0)
-     .BindLabel(LLoopStart)          // Loop start
-     .LoadLocal(0)                   // Load counter
-     .LoadInt(0)
-     .EqInt()                        // Check if counter == 0
-     .JumpTrue(LLoopEnd)             // Exit if true
-     .LoadLocal(0)                   // Load counter
-     .CallFunction('println')        // Print it
-     .LoadLocal(0)                   // Load counter
-     .DecInt()                       // Decrement
-     .StoreLocal(0)                  // Store back
-     .Jump(LLoopStart)               // Loop back
-     .BindLabel(LLoopEnd)            // Loop end
-     .Stop();
-end;
+// if (x > 10) then result := x * 2 else result := x + 5
+LVM.LoadInt(15)        // Load x = 15
+   .Dup()              // Duplicate for comparison
+   .LoadInt(10)        // Load comparison value
+   .GreaterThanInt()   // x > 10?
+   .JumpIfFalse('else_branch')
+   
+   // True branch: x * 2
+   .LoadInt(2)
+   .MultiplyInt()
+   .Jump('end')
+   
+   .Label('else_branch')
+   // False branch: x + 5  
+   .LoadInt(5)
+   .AddInt()
+   
+   .Label('end')
+   .Stop();
+
+LVM.Execute();
+LResult := LVM.PeekValue();
+WriteLn('Result: ', LResult.IntValue); // Output: 30
 ```
 
-### Error Handling Best Practices
+## 📖 Documentation
 
-```pascal
-// Production-ready error handling
-function SafeExecuteScript(const AVM: TJetVM): Boolean;
-begin
-  Result := False;
-  try
-    AVM.SetValidationLevel(vlSafe);  // Use safe mode for untrusted code
-    AVM.Execute();
-    Result := True;
-  except
-    on E: EJetVMError do
-    begin
-      WriteLn('VM Error: ', E.Message);
-      WriteLn('PC: ', AVM.GetPC(), ', SP: ', AVM.GetSP());
-      // Handle gracefully
-    end;
-  end;
-end;
-```
-
-## 📚 Documentation & Guides
-
-### 📖 **Comprehensive Developer Guide**
+### 📚 **Comprehensive Developer Guide**
 **[DEVELOPER-GUIDE.md](DEVELOPER-GUIDE.md)** contains **12 detailed sections**:
 
 | Section | Content | Pages |
@@ -293,8 +227,8 @@ end;
 **[TEST-REPORT.md](TEST-REPORT.md)** provides comprehensive analysis:
 
 #### ✅ **Test Results Summary**
-- **97 tests executed** with **100% pass rate**
-- **27ms total execution time** (0.28ms average per test)
+- **257 tests executed** with **100% pass rate**
+- **0.069 seconds total execution time** (0.0003s average per test)
 - **Zero defects** detected in core functionality
 - **Enterprise-grade stability** demonstrated
 
@@ -302,17 +236,17 @@ end;
 | Component | Coverage | Status | Test Count |
 |-----------|----------|--------|------------|
 | **VM Core** | 100% | ✅ Complete | 43 tests |
-| **TJetValue System** | 100% | ✅ Complete | 54 tests |
-| **Execution Engine** | 85% | ✅ Core Complete | Integrated |
-| **Fluent Interface** | 90% | ✅ Core Complete | Integrated |
-| **Memory Management** | 95% | ✅ Excellent | Integrated |
+| **TJetValue System** | 100% | ✅ Complete | 67 tests |
+| **Stack Operations** | 100% | ✅ Complete | 49 tests |
+| **Constants Pool** | 100% | ✅ Complete | 50 tests |
+| **Bytecode Generation** | 100% | ✅ Complete | 48 tests |
 
 #### 🎯 **Development Phases**
 - ✅ **Phase 1**: Core Infrastructure (43 tests) - **COMPLETE**
-- ✅ **Phase 2**: Values System (54 tests) - **COMPLETE**
-- 🔄 **Phase 3**: Stack Operations - **IN PROGRESS**
-- ⏳ **Phase 4**: Constants Pool - **PLANNED**
-- ⏳ **Phase 5**: Bytecode Generation - **PLANNED**
+- ✅ **Phase 2**: Values System (67 tests) - **COMPLETE**
+- ✅ **Phase 3**: Stack Operations (49 tests) - **COMPLETE**
+- ✅ **Phase 4**: Constants Pool (50 tests) - **COMPLETE**
+- ✅ **Phase 5**: Bytecode Generation (48 tests) - **COMPLETE**
 
 #### ⚡ **Performance Metrics**
 - **VM Creation**: Sub-millisecond startup
@@ -330,20 +264,19 @@ end;
 JetVM maintains **enterprise-grade quality** through comprehensive testing:
 
 ### ✅ **Current Test Status**
-- **97 tests** with **100% pass rate** _(Perfect success rate!)_
-- **27ms execution time** - enables rapid development cycles
+- **257 tests** with **100% pass rate** _(Perfect success rate!)_
+- **0.069 seconds execution time** - enables rapid development cycles
 - **Zero defects** detected in core functionality
-- **Lightning performance** - 0.28ms average per test
+- **Lightning performance** - 0.0003s average per test
 
 ### 📋 **Test Coverage Breakdown**
 | Component | Tests | Coverage | Status |
 |-----------|-------|----------|--------|
-| **VM Lifecycle** | 15 | 100% | ✅ Production Ready |
-| **State Management** | 12 | 100% | ✅ Fully Validated |
-| **Execution Engine** | 16 | 85% | ✅ Core Complete |
-| **Value Creation** | 25 | 100% | ✅ All Types Covered |
-| **Type System** | 18 | 100% | ✅ Edge Cases Included |
-| **Memory Management** | 11 | 95% | ✅ Leak Prevention Verified |
+| **VM Core & Lifecycle** | 43 | 100% | ✅ Production Ready |
+| **TJetValue System** | 67 | 100% | ✅ All Types Covered |
+| **Stack Operations** | 49 | 100% | ✅ Fully Validated |
+| **Constants Pool** | 50 | 100% | ✅ Complete Management |
+| **Bytecode Generation** | 48 | 100% | ✅ Fluent Interface Ready |
 
 ### 🎯 **Quality Indicators**
 - **Coverage Depth**: Comprehensive edge case testing including boundary values
@@ -354,10 +287,10 @@ JetVM maintains **enterprise-grade quality** through comprehensive testing:
 ### 🚀 **Test Phases Progress**
 ```
 Phase 1: Core Infrastructure   ✅ 43 tests (100% pass)
-Phase 2: Values System         ✅ 54 tests (100% pass)
-Phase 3: Stack Operations      🔄 In Development
-Phase 4: Constants Pool        ⏳ Planned Q1 2025
-Phase 5: Bytecode Generation   ⏳ Planned Q1 2025
+Phase 2: Values System         ✅ 67 tests (100% pass)
+Phase 3: Stack Operations      ✅ 49 tests (100% pass)
+Phase 4: Constants Pool        ✅ 50 tests (100% pass)
+Phase 5: Bytecode Generation   ✅ 48 tests (100% pass)
 Integration Testing            ⏳ Planned Q2 2025
 Performance Benchmarks         ⏳ Planned Q2 2025
 ```
@@ -376,11 +309,11 @@ JetVMTests.exe
 # ✓ TestVMCreationDefault
 # ✓ TestVMCreationWithValidationLevels
 # ✓ TestBasicExecution
-# [... 97 total tests ...]
+# [... 257 total tests across 5 fixtures ...]
 # ================================================================================
 #                            ✅ ALL TESTS PASSED
 # ================================================================================
-# Tests Found: 97 | Tests Passed: 97 | Duration: 27ms
+# Tests Found: 257 | Tests Passed: 257 | Duration: 0.069s
 ```
 
 **See [TEST-REPORT.md](TEST-REPORT.md) for detailed analysis and performance metrics.**
@@ -594,7 +527,7 @@ A: Delphi XE2 (2012) or later. Requires modern generics support and 64-bit compi
 A: Currently Windows only (actively developed and tested). While JetVM uses pure Delphi code that may work on Linux/macOS, these platforms are untested and unsupported. Community testing and feedback for other platforms is welcome.
 
 **Q: How does performance compare to other VMs?**  
-A: Current benchmarks show sub-millisecond VM creation and microsecond-level value operations (0.28ms average per test). Comprehensive performance benchmarking is planned for Q2 2025. See [TEST-REPORT.md](TEST-REPORT.md) for current measured performance data.
+A: Current benchmarks show sub-millisecond VM creation and microsecond-level value operations (0.0003s average per test). Comprehensive performance benchmarking is planned for Q2 2025. See [TEST-REPORT.md](TEST-REPORT.md) for current measured performance data.
 
 **Q: Is JetVM suitable for production use?**  
 A: Yes! Core infrastructure has 100% test coverage and zero detected defects.

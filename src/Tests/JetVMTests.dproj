@@ -122,6 +122,11 @@
         <DCCReference Include="..\JetVM.Test.Logger.pas"/>
         <DCCReference Include="JetVM.Test.Core.pas"/>
         <DCCReference Include="JetVM.Test.Values.pas"/>
+        <DCCReference Include="..\JetVM.JIT.pas"/>
+        <DCCReference Include="JetVM.Test.JIT.pas"/>
+        <DCCReference Include="JetVM.Test.Stack.pas"/>
+        <DCCReference Include="JetVM.Test.Constants.pas"/>
+        <DCCReference Include="JetVM.Test.Bytecode.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -166,6 +171,12 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="..\..\bin\JetVMTests.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>JetVMTests.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\..\bin\JetVMTests.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>JetVMTests.exe</RemoteName>
                         <Overwrite>true</Overwrite>

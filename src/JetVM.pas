@@ -242,7 +242,7 @@ type
   TJetVM = class;
 
   // Native function callback type
-  TJetNativeFunction = procedure(const AVM: TJetVM);
+  TJetNativeFunction = reference to procedure(const AVM: TJetVM);
 
   // Function signature for registry
   TJetFunctionSignature = record
@@ -292,11 +292,11 @@ type
     // === CORE DATA STRUCTURES ===
     //FBytecode: array of Byte;        // Instruction stream
     FBytecode: TArray<Byte>;
-    FStack: array of TJetValue;      // Operand stack
-    FConstants: array of TJetValue;  // Constants pool
-    FLocals: array of TJetValue;     // Local variables
-    FGlobals: array of TJetValue;    // Global variables
-    FCallStack: array of Integer;    // Return addresses
+    FStack: TArray<TJetValue>;      // Operand stack
+    FConstants: TArray<TJetValue>;  // Constants pool
+    FLocals: TArray<TJetValue>;     // Local variables
+    FGlobals: TArray<TJetValue>;    // Global variables
+    FCallStack: TArray<Integer>;    // Return addresses
     FCallSP: Integer;                // Call stack pointer
 
     // === FUNCTION MANAGEMENT ===
@@ -320,6 +320,8 @@ type
       Size: Integer;
     end;
     FBoundsCount: Integer;           // Number of tracked allocations
+
+    FConstantsCount: Integer;       // Track actual number of valid constants
     
     // === EXECUTION METHODS ===
     procedure ExecuteCore(); inline;
@@ -528,7 +530,6 @@ type
     function StoreOffsetStr(): TJetVM;
     function StoreOffsetBool(): TJetVM;
 
-    
     // === FLUENT ARRAY OPERATIONS ===
     function DeclareFixedArray(const ALowerBound, AUpperBound: Integer; const AElementType: TJetValueType): TJetVM;
     function DeclareDynamicArray(const AElementType: TJetValueType): TJetVM;
@@ -621,7 +622,7 @@ type
     // === FLUENT VM CONTROL ===
     function Nop(): TJetVM;
     function Stop(): TJetVM;
-    
+
     // === STATE ACCESS ===
     function GetPC(): Integer;
     function GetSP(): Integer;
@@ -631,15 +632,17 @@ type
     function GetValidationLevel(): TJetVMValidationLevel;
     procedure SetValidationLevel(const ALevel: TJetVMValidationLevel);
 
-    //
-    function BytecodeSize(): UInt64;
+    // === BYTECODE ACCESS ===
+    function GetBytecode(): TArray<Byte>;
+    function GetConstants(): TArray<TJetValue>;
+    function GetBytecodeSize(): UInt64;
 
     // === ALIGNMENT HELPERS ===
     function GetTypeSize(const AType: TJetValueType): Integer;
     function GetTypeAlignment(const AType: TJetValueType): Integer;
     function AlignOffset(const AOffset, AAlignment: Integer): Integer;
     function CalculateStructSize(const AFieldTypes: array of TJetValueType): Integer;
-    
+
     // === DEBUGGING ===
     procedure DumpStack();
     procedure DumpConstants();
@@ -713,12 +716,12 @@ end;
 { TJetVM }
 
 constructor TJetVM.Create(const AValidationLevel: TJetVMValidationLevel = vlBasic);
+var
+  LIndex: Integer;
 begin
   inherited Create();
-  
-  FValidationLevel := AValidationLevel;
-  FStackTracker := TStackTypeTracker.Create();
 
+  FValidationLevel := AValidationLevel;
   FStackTracker := TStackTypeTracker.Create();
   FFunctionRegistry := TJetFunctionRegistry.Create();
   FFrameSP := 0;
@@ -731,8 +734,17 @@ begin
   SetLength(FGlobals, DEFAULT_GLOBALS_SIZE);
   SetLength(FCallStack, DEFAULT_CALL_STACK_SIZE);
   SetLength(FConstants, DEFAULT_CONSTANTS_SIZE);
-  SetLength(FLabels, 64); // Initial label capacity
-  
+
+  // FIXED: Initialize constants array to prevent access violations
+  for LIndex := 0 to DEFAULT_CONSTANTS_SIZE - 1 do
+  begin
+    FConstants[LIndex].ValueType := jvtInt;
+    FConstants[LIndex].IntValue := 0;
+  end;
+
+  FConstantsCount := 0;
+  SetLength(FLabels, 64);
+
   Reset();
 end;
 
@@ -756,6 +768,7 @@ begin
   FBytecodePos := 0;
   FFinalized := False;
   FLabelCount := 0;
+  FConstantsCount := 0;  // FIXED: Reset actual constants count
   if Assigned(FStackTracker) then
     FStackTracker.Clear();
   ClearBoundsTable();
@@ -772,12 +785,12 @@ begin
 end;
 
 procedure TJetVM.AddConstant(const AValue: TJetValue);
-var
-  LNewLength: Integer;
 begin
-  LNewLength := Length(FConstants) + 1;
-  SetLength(FConstants, LNewLength);
-  FConstants[LNewLength - 1] := AValue;
+  // FIXED: Use actual constants count instead of array length
+  if FConstantsCount >= Length(FConstants) then
+    SetLength(FConstants, Length(FConstants) * 2);
+  FConstants[FConstantsCount] := AValue;
+  Inc(FConstantsCount);
 end;
 
 function TJetVM.MakeIntConstant(const AValue: Int64): TJetValue;
@@ -831,62 +844,51 @@ end;
 procedure TJetVM.ExecuteCore();
 var
   LOpCode: TJetOpCode;
+  LValue1, LValue2, LValue3: TJetValue;
 begin
   while FRunning and (FPC < Length(FBytecode)) do
   begin
     LOpCode := TJetOpCode(FBytecode[FPC]);
     Inc(FPC);
-    
+
     case LOpCode of
       // === LOAD OPERATIONS ===
       OP_LOAD_CONST:
-      begin
         PushValue(FConstants[ReadInt32()]);
-      end;
-      
+
       OP_LOAD_LOCAL:
-      begin
         PushValue(FLocals[FBP + ReadInt32()]);
-      end;
-      
+
       OP_LOAD_GLOBAL:
-      begin
         PushValue(FGlobals[ReadInt32()]);
-      end;
-      
+
       OP_LOAD_PARAM:
-      begin
         PushValue(FLocals[ReadInt32()]);
-      end;
-      
+
       OP_STORE_LOCAL:
-      begin
         FLocals[FBP + ReadInt32()] := PopValue();
-      end;
-      
+
       OP_STORE_GLOBAL:
-      begin
         FGlobals[ReadInt32()] := PopValue();
-      end;
-      
+
       // === ARITHMETIC OPERATIONS ===
       OP_ADD_INT..OP_POST_DEC_INT:
         ExecuteIntArithmetic(LOpCode);
-      
+
       OP_ADD_UINT..OP_POST_DEC_UINT:
         ExecuteUIntArithmetic(LOpCode);
-      
+
       // === BITWISE OPERATIONS ===
       OP_AND_INT..OP_SHR_INT:
         ExecuteIntBitwise(LOpCode);
-        
+
       OP_AND_UINT..OP_SHR_UINT:
         ExecuteUIntBitwise(LOpCode);
-      
+
       // === BOOLEAN LOGIC ===
       OP_AND_BOOL..OP_NOT_BOOL:
         ExecuteBooleanLogic(LOpCode);
-      
+
       // === COMPARISONS ===
       OP_EQ_INT..OP_GE_INT,
       OP_EQ_UINT..OP_GE_UINT,
@@ -894,11 +896,11 @@ begin
       OP_EQ_BOOL..OP_NE_BOOL,
       OP_EQ_PTR..OP_NE_PTR:
         ExecuteComparison(LOpCode);
-      
+
       // === STRING OPERATIONS ===
       OP_STR_CONCAT..OP_STR_TRIM:
         ExecuteStringOp(LOpCode);
-      
+
       // === POINTER OPERATIONS ===
       OP_ADDR_OF..OP_STORE_OFFSET_BOOL:
         ExecutePointerOp(LOpCode);
@@ -910,61 +912,55 @@ begin
       // === CONTROL FLOW ===
       OP_JMP..OP_JMP_NOT_ZERO:
         ExecuteJump(LOpCode);
-      
+
       OP_CALL_FUNC:
         ExecuteCall(LOpCode);
-      
+
       OP_RET, OP_RET_VALUE:
         ExecuteReturn(LOpCode);
-        
+
       OP_ENTER_SCOPE, OP_EXIT_SCOPE:
         ExecuteScope(LOpCode);
-      
+
       // === PARAMETER OPERATIONS ===
       OP_PARAM_CONST_INT..OP_PARAM_OUT_ARRAY:
         ExecuteParameterOp(LOpCode);
-      
+
       // === MEMORY OPERATIONS ===
       OP_ALLOC..OP_MEMSET:
         ExecuteMemoryOp(LOpCode);
-      
+
       // === TYPE CONVERSION ===
       OP_INT_TO_UINT..OP_INT_TO_PTR:
         ExecuteTypeConversion(LOpCode);
-      
+
       // === STACK OPERATIONS ===
       OP_PUSH:
-      begin
         PushValue(PeekValue());
-      end;
-      
+
       OP_POP:
-      begin
         PopValue();
-      end;
-      
+
       OP_DUP:
-      begin
         PushValue(PeekValue());
-      end;
-      
+
       OP_SWAP:
-      begin
-        var LValue1 := PopValue();
-        var LValue2 := PopValue();
-        PushValue(LValue1);
-        PushValue(LValue2);
-      end;
-      
+        begin
+          LValue1 := PopValue();
+          LValue2 := PopValue();
+          PushValue(LValue1);
+          PushValue(LValue2);
+        end;
+
       OP_ROT:
-      begin
-        var LValue1 := PopValue();
-        var LValue2 := PopValue();
-        var LValue3 := PopValue();
-        PushValue(LValue2);
-        PushValue(LValue1);
-        PushValue(LValue3);
-      end;
+        begin
+          LValue1 := PopValue();
+          LValue2 := PopValue();
+          LValue3 := PopValue();
+          PushValue(LValue2);
+          PushValue(LValue1);
+          PushValue(LValue3);
+        end;
 
       // === FUNCTION OPERATIONS ===
       OP_CALL_FUNC_BY_NAME, OP_CALL_NATIVE, OP_SETUP_CALL, OP_PUSH_PARAM,
@@ -974,15 +970,16 @@ begin
       // === VM CONTROL ===
       OP_NOP:
         ; // Do nothing
-      
+
       OP_HALT:
         FRunning := False;
-      
+
       else
         RaiseVMError(Format('Unknown opcode: %d', [Ord(LOpCode)]));
     end;
   end;
 end;
+
 {$R+}{$Q+} // Re-enable range/overflow checking
 
 function TJetVM.ReadInt32(): Integer;
@@ -1653,6 +1650,8 @@ begin
 end;
 
 function TJetVM.DeclareFunction(const AName: string): TJetVM;
+var
+  LConstIndex: Integer;
 begin
   CheckCanEmit();
 
@@ -1661,7 +1660,7 @@ begin
   EmitOpCode(OP_DECLARE_FUNCTION);
 
   // Store function name as string constant for debugging
-  var LConstIndex := AddConstantInternal(MakeStrConstant(AName));
+  LConstIndex := AddConstantInternal(MakeStrConstant(AName));
   EmitInt32(LConstIndex);
   Result := Self;
 end;
@@ -2531,8 +2530,8 @@ function TJetVM.AddConstantInternal(const AValue: TJetValue): Integer;
 var
   LIndex: Integer;
 begin
-  // Check if constant already exists (optimization)
-  for LIndex := 0 to High(FConstants) do
+  // FIXED: Check if constant already exists (only search valid constants)
+  for LIndex := 0 to FConstantsCount - 1 do
   begin
     if (FConstants[LIndex].ValueType = AValue.ValueType) then
     begin
@@ -2544,11 +2543,13 @@ begin
       end;
     end;
   end;
-  
+
   // Add new constant
-  Result := Length(FConstants);
-  SetLength(FConstants, Result + 1);
-  FConstants[Result] := AValue;
+  Result := FConstantsCount;
+  if FConstantsCount >= Length(FConstants) then
+    SetLength(FConstants, Length(FConstants) * 2);
+  FConstants[FConstantsCount] := AValue;
+  Inc(FConstantsCount);
 end;
 
 procedure TJetVM.ValidateStackTypes(const ARequired: Integer; const AType: TJetValueType);
@@ -4870,7 +4871,7 @@ end;
 
 function TJetVM.GetConstant(const AIndex: Integer): TJetValue;
 begin
-  if (AIndex >= 0) and (AIndex < Length(FConstants)) then
+  if (AIndex >= 0) and (AIndex < FConstantsCount) then
     Result := FConstants[AIndex]
   else
     RaiseVMError('Constant index out of range');
@@ -4891,7 +4892,24 @@ begin
   FValidationLevel := ALevel;
 end;
 
-function TJetVM.BytecodeSize(): UInt64;
+// === BYTECODE ACCESS ===
+function TJetVM.GetBytecode(): TArray<Byte>;
+begin
+  Result := FBytecode;
+end;
+
+function TJetVM.GetConstants(): TArray<TJetValue>;
+var
+  LIndex: Integer;
+begin
+  SetLength(Result, FConstantsCount);
+
+  // Use proper assignment to handle managed types correctly
+  for LIndex := 0 to FConstantsCount - 1 do
+    Result[LIndex] := FConstants[LIndex];  // Proper reference counting
+end;
+
+function TJetVM.GetBytecodeSize(): UInt64;
 begin
   Result := Length(FBytecode);
 end;
@@ -5006,7 +5024,8 @@ var
   LIndex: Integer;
 begin
   Writeln('=== CONSTANTS DUMP ===');
-  for LIndex := 0 to High(FConstants) do
+  Writeln('Constants Count: ', FConstantsCount);
+  for LIndex := 0 to FConstantsCount - 1 do
   begin
     Write('Const[', LIndex, ']: ');
     case FConstants[LIndex].ValueType of

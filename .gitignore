@@ -81,3 +81,5 @@ __recovery/
 modules/
 bin/JetVMTests.xml
 *.dsv
+changes-diff.cmd
+changes.diff
