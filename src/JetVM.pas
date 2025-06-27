@@ -236,6 +236,10 @@ type
     procedure Clear();
     function GetDepth(): Integer;
     function CheckHasAtLeast(const ACount: Integer; const AType: TJetValueType): Boolean;
+    procedure PushAny();
+    function PopAny(): Boolean;
+    function PopType(): TJetValueType;
+    function PeekType(const AOffset: Integer = 0): TJetValueType;
   end;
 
   // Forward declaration
@@ -713,6 +717,47 @@ begin
   end;
 end;
 
+procedure TStackTypeTracker.PushAny();
+begin
+  // Push a value of unknown type - for operations that can produce any type
+  if FDepth >= Length(FExpectedTypes) then
+  begin
+    if Length(FExpectedTypes) = 0 then
+      SetLength(FExpectedTypes, 8)
+    else
+      SetLength(FExpectedTypes, Length(FExpectedTypes) * 2);
+  end;
+  FExpectedTypes[FDepth] := jvtInt; // Use jvtInt as placeholder for "any type"
+  Inc(FDepth);
+end;
+
+function TStackTypeTracker.PopAny(): Boolean;
+begin
+  // Pop any type without validation - always succeeds if stack has values
+  Result := FDepth > 0;
+  if Result then
+    Dec(FDepth);
+end;
+
+function TStackTypeTracker.PopType(): TJetValueType;
+begin
+  if FDepth > 0 then
+  begin
+    Dec(FDepth);
+    Result := FExpectedTypes[FDepth];
+  end
+  else
+    raise EJetVMError.Create('Stack underflow in type tracker');
+end;
+
+function TStackTypeTracker.PeekType(const AOffset: Integer = 0): TJetValueType;
+begin
+  if FDepth > AOffset then
+    Result := FExpectedTypes[FDepth - 1 - AOffset]
+  else
+    raise EJetVMError.Create('Stack underflow in type tracker');
+end;
+
 { TJetVM }
 
 constructor TJetVM.Create(const AValidationLevel: TJetVMValidationLevel = vlBasic);
@@ -744,6 +789,9 @@ begin
 
   FConstantsCount := 0;
   SetLength(FLabels, 64);
+
+  FBoundsCount := 0;
+  SetLength(FBoundsTable, 0);
 
   Reset();
 end;
@@ -1510,6 +1558,13 @@ var
   LSignature: TJetFunctionSignature;
   LIndex: Integer;
 begin
+  // ADD VALIDATION AT REGISTRATION TIME
+  if not Assigned(AProc) then
+    raise EJetVMError.Create('Native function procedure cannot be nil');
+
+  if AName.IsEmpty then
+    raise EJetVMError.Create('Function name cannot be empty');
+
   LSignature.Name := AName;
   LSignature.Address := -1;  // Not used for native functions
   LSignature.NativeProc := AProc;
@@ -1535,6 +1590,13 @@ var
   LSignature: TJetFunctionSignature;
   LIndex: Integer;
 begin
+  // ADD VALIDATION AT REGISTRATION TIME
+  if not Assigned(AProc) then
+    raise EJetVMError.Create('Native function procedure cannot be nil');
+
+  if AName.IsEmpty then
+    raise EJetVMError.Create('Function name cannot be empty');
+
   LSignature.Name := AName;
   LSignature.Address := -1;  // Not used for native functions
   LSignature.NativeProc := AProc;
@@ -1560,6 +1622,13 @@ var
   LSignature: TJetFunctionSignature;
   LIndex: Integer;
 begin
+  // ADD VALIDATION
+  if AName.IsEmpty then
+    raise EJetVMError.Create('Function name cannot be empty');
+
+  if AAddress < 0 then
+    raise EJetVMError.Create('VM function address cannot be negative');
+
   LSignature.Name := AName;
   LSignature.Address := AAddress;
   LSignature.NativeProc := nil; // Not used for VM functions
@@ -1585,6 +1654,13 @@ var
   LSignature: TJetFunctionSignature;
   LIndex: Integer;
 begin
+  // ADD VALIDATION
+  if AName.IsEmpty then
+    raise EJetVMError.Create('Function name cannot be empty');
+
+  if AAddress < 0 then
+    raise EJetVMError.Create('VM function address cannot be negative');
+
   LSignature.Name := AName;
   LSignature.Address := AAddress;
   LSignature.NativeProc := nil; // Not used for VM functions
@@ -2557,7 +2633,7 @@ begin
   if (FValidationLevel >= vlDevelopment) and Assigned(FStackTracker) then
   begin
     if not FStackTracker.CheckHasAtLeast(ARequired, AType) then
-      raise EJetVMError.CreateFmt('Stack type validation failed - expected %d values of type %d', 
+      raise EJetVMError.CreateFmt('Stack type validation failed - expected %d values of type %d',
         [ARequired, Ord(AType)]);
   end;
 end;
@@ -2566,11 +2642,18 @@ procedure TJetVM.Finalize();
 var
   LIndex: Integer;
 begin
-  // Patch all bound labels
+  // VALIDATE all referenced labels are bound BEFORE patching
+  for LIndex := 0 to FLabelCount - 1 do
+  begin
+    if (Length(FLabels[LIndex].PatchList) > 0) and (not FLabels[LIndex].IsBound) then
+      raise EJetVMError.CreateFmt('Unbound label %d has %d unresolved references',
+        [LIndex, Length(FLabels[LIndex].PatchList)]);
+  end;
+
+  // Now patch all bound labels
   for LIndex := 0 to FLabelCount - 1 do
     PatchLabel(LIndex);
-    
-  // Resize bytecode to actual size
+
   SetLength(FBytecode, FBytecodePos);
   FFinalized := True;
 end;
@@ -2661,6 +2744,10 @@ end;
 function TJetVM.LoadLocal(const AIndex: Integer): TJetVM;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+    FStackTracker.PushAny(); // Push value of unknown type
+
   EmitOpCode(OP_LOAD_LOCAL);
   EmitInt32(AIndex);
   Result := Self;
@@ -2669,6 +2756,10 @@ end;
 function TJetVM.LoadGlobal(const AIndex: Integer): TJetVM;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+    FStackTracker.PushAny(); // Push value of unknown type
+
   EmitOpCode(OP_LOAD_GLOBAL);
   EmitInt32(AIndex);
   Result := Self;
@@ -2677,6 +2768,10 @@ end;
 function TJetVM.LoadParam(const AIndex: Integer): TJetVM;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+    FStackTracker.PushAny(); // Push value of unknown type
+
   EmitOpCode(OP_LOAD_PARAM);
   EmitInt32(AIndex);
   Result := Self;
@@ -2685,10 +2780,10 @@ end;
 function TJetVM.StoreLocal(const AIndex: Integer): TJetVM;
 begin
   CheckCanEmit();
-  
+
   if FValidationLevel >= vlDevelopment then
-    FStackTracker.Pop(jvtInt); // Pop any type for now
-    
+    FStackTracker.PopAny(); // Pop any type without validation
+
   EmitOpCode(OP_STORE_LOCAL);
   EmitInt32(AIndex);
   Result := Self;
@@ -2697,10 +2792,10 @@ end;
 function TJetVM.StoreGlobal(const AIndex: Integer): TJetVM;
 begin
   CheckCanEmit();
-  
+
   if FValidationLevel >= vlDevelopment then
-    FStackTracker.Pop(jvtInt); // Pop any type for now
-    
+    FStackTracker.PopAny(); // Pop any type without validation
+
   EmitOpCode(OP_STORE_GLOBAL);
   EmitInt32(AIndex);
   Result := Self;
@@ -3809,12 +3904,12 @@ end;
 function TJetVM.LoadPtrInt(): TJetVM;
 begin
   CheckCanEmit();
-  ValidateStackTypes(1, jvtPointer);
+  // REMOVED: ValidateStackTypes(1, jvtPointer); // Can't validate type from LoadLocal
 
   if FValidationLevel >= vlDevelopment then
   begin
-    FStackTracker.Pop(jvtPointer);
-    FStackTracker.Push(jvtInt);
+    FStackTracker.PopAny();        // Pop any type since LoadLocal pushes placeholder
+    FStackTracker.Push(jvtInt);    // Push the actual result type
   end;
 
   EmitOpCode(OP_LOAD_PTR_INT);
@@ -4358,22 +4453,63 @@ begin
 end;
 
 function TJetVM.Dup(): TJetVM;
+var
+  LTopType: TJetValueType;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+  begin
+    if FStackTracker.GetDepth() > 0 then
+    begin
+      LTopType := FStackTracker.PeekType(); // Get top type without removing
+      FStackTracker.Push(LTopType);         // Push same type again
+    end
+    else
+      raise EJetVMError.Create('Dup requires at least 1 item on stack');
+  end;
+
   EmitOpCode(OP_DUP);
   Result := Self;
 end;
 
 function TJetVM.Swap(): TJetVM;
+var
+  LType1: TJetValueType;
+  LType2: TJetValueType;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+  begin
+    LType1 := FStackTracker.PopType(); // Get top type
+    LType2 := FStackTracker.PopType(); // Get second type
+    FStackTracker.Push(LType1);        // Push first back (now on bottom)
+    FStackTracker.Push(LType2);        // Push second back (now on top)
+  end;
+
   EmitOpCode(OP_SWAP);
   Result := Self;
 end;
 
 function TJetVM.Rot(): TJetVM;
+var
+  LType1: TJetValueType;
+  LType2: TJetValueType;
+  LType3: TJetValueType;
 begin
   CheckCanEmit();
+
+  if FValidationLevel >= vlDevelopment then
+  begin
+    LType1 := FStackTracker.PopType(); // Top
+    LType2 := FStackTracker.PopType(); // Middle
+    LType3 := FStackTracker.PopType(); // Bottom
+    FStackTracker.Push(LType2);        // Middle → bottom
+    FStackTracker.Push(LType1);        // Top → middle
+    FStackTracker.Push(LType3);        // Bottom → top
+  end;
+
   EmitOpCode(OP_ROT);
   Result := Self;
 end;

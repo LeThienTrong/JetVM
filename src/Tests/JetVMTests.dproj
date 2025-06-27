@@ -125,6 +125,24 @@
         <DCCReference Include="JetVM.Test.Stack.pas"/>
         <DCCReference Include="JetVM.Test.Constants.pas"/>
         <DCCReference Include="JetVM.Test.Bytecode.pas"/>
+        <DCCReference Include="JetVM.Test.Execution.pas"/>
+        <DCCReference Include="JetVM.Test.Labels.pas"/>
+        <DCCReference Include="JetVM.Test.Registers.pas"/>
+        <DCCReference Include="JetVM.Test.Arithmetic.pas"/>
+        <DCCReference Include="JetVM.Test.Bitwise.pas"/>
+        <DCCReference Include="JetVM.Test.Comparisons.pas"/>
+        <DCCReference Include="JetVM.Test.Boolean.pas"/>
+        <DCCReference Include="JetVM.Test.Strings.pas"/>
+        <DCCReference Include="JetVM.Test.Pointers.pas"/>
+        <DCCReference Include="JetVM.Test.Arrays.pas"/>
+        <DCCReference Include="JetVM.Test.TypeConversion.pas"/>
+        <DCCReference Include="JetVM.Test.ControlFlow.pas"/>
+        <DCCReference Include="JetVM.Test.Functions.pas"/>
+        <DCCReference Include="JetVM.Test.Parameters.pas"/>
+        <DCCReference Include="JetVM.Test.Memory.pas"/>
+        <DCCReference Include="JetVM.Test.Validation.pas"/>
+        <DCCReference Include="JetVM.Test.Integration.pas"/>
+        <DCCReference Include="JetVM.Test.Performance.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
