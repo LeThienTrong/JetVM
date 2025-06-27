@@ -22,10 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Changed
+- **Merge branch 'main' of https://github.com/tinyBigGAMES/JetVM** (2025-06-26 – jarroddavis68)
+
 - **Update README.md** (2025-06-26 – jarroddavis68)
 
 - **Repo Update** (2025-06-26 – jarroddavis68)
   - Initial commit
 
 - **Initial commit** (2025-06-26 – Jarrod Davis)
+
+
+### Removed
+- **Remove unneeded units from  JetVMTests project** (2025-06-26 – jarroddavis68)
 
